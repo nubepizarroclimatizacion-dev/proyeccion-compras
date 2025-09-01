@@ -1,27 +1,40 @@
-import { getApp, getApps, initializeApp, type FirebaseOptions } from 'firebase/app';
-import { getAuth, connectAuthEmulator } from 'firebase/auth';
-import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
 
-const firebaseConfig: FirebaseOptions = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-};
+"use client";
 
-const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
-const db = getFirestore(app);
-const auth = getAuth(app);
+import { getApps, getApp, initializeApp, type FirebaseApp } from "firebase/app";
+import { resolveFirebaseClientConfig } from "./firebase-config";
 
-if (process.env.NEXT_PUBLIC_USE_FIRESTORE_EMULATOR === 'true') {
-  const host = process.env.NEXT_PUBLIC_FIRESTORE_EMULATOR_HOST || '127.0.0.1';
-  const port = parseInt(process.env.NEXT_PUBLIC_FIRESTORE_EMULATOR_PORT || '8080', 10);
-  console.log(`Connecting to Firestore emulator at ${host}:${port}`);
-  connectFirestoreEmulator(db, host, port);
-  connectAuthEmulator(auth, `http://${host}:9099`);
+let app: FirebaseApp | null = null;
+let initError: string | null = null;
+let initNotes: string[] = [];
+
+function ensureApp(): FirebaseApp | null {
+  if (app) return app;
+  const { config, diagnostics } = resolveFirebaseClientConfig();
+  initNotes = diagnostics;
+
+  if (!config) {
+    initError =
+      "[Firebase] Missing or invalid client config. " +
+      diagnostics.join(" | ");
+    console.error(initError);
+    return null;
+  }
+
+  try {
+    app = getApps().length ? getApp() : initializeApp(config);
+    return app;
+  } catch (err) {
+    initError = `[Firebase] Failed to initialize app: ${(err as Error).message}`;
+    console.error(initError);
+    return null;
+  }
 }
 
+export function getFirebaseApp(): FirebaseApp | null {
+  return ensureApp();
+}
 
-export { app, db, auth };
+export function getInitDiagnostics() {
+  return { notes: initNotes, error: initError };
+}
