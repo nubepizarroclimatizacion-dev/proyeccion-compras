@@ -1,7 +1,9 @@
 // src/lib/firebase.ts
 "use client";
 
-import { initializeApp, getApps, getApp, type FirebaseApp } from "firebase/app";
+import { FirebaseApp, getApp, getApps, initializeApp } from "firebase/app";
+import { getAuth, Auth, connectAuthEmulator } from "firebase/auth";
+import { Firestore, getFirestore } from "firebase/firestore";
 
 // Esta función resuelve la configuración de Firebase de forma segura.
 function getFirebaseConfig() {
@@ -24,37 +26,51 @@ function getFirebaseConfig() {
       appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
     };
   }
+  
+  console.error(
+    "Firebase config not found. Please set up NEXT_PUBLIC_FIREBASE_* environment variables or use the Firebase Hosting environment."
+  );
 
-  return null; // No hay configuración disponible
+  return null; 
 }
 
-let firebaseApp: FirebaseApp | null = null;
 
-/**
- * Inicializa y devuelve la instancia de la aplicación de Firebase (singleton).
- * Se asegura de que la inicialización ocurra solo una vez y en el cliente.
- * @returns La instancia de FirebaseApp o null si la configuración no está disponible.
- */
-export function getFirebaseApp(): FirebaseApp | null {
-  if (firebaseApp) {
-    return firebaseApp;
-  }
+let app: FirebaseApp | null = null;
 
+// Evita inicializaciones duplicadas durante Fast Refresh / RSC.
+if (getApps().length === 0) {
   const config = getFirebaseConfig();
-
-  if (!config) {
-    console.error(
-      "Firebase config not found. Please set up NEXT_PUBLIC_FIREBASE_* environment variables or use the Firebase Hosting environment."
-    );
-    return null;
+  if (config) {
+    app = initializeApp(config);
   }
-
-  // Evitamos inicializaciones duplicadas.
-  if (!getApps().length) {
-    firebaseApp = initializeApp(config);
-  } else {
-    firebaseApp = getApp();
-  }
-
-  return firebaseApp;
+} else {
+  app = getApp();
 }
+
+// Exposición única de instancias cliente.
+const db: Firestore | null = app ? getFirestore(app) : null;
+const auth: Auth | null = app ? getAuth(app) : null;
+
+if (auth && process.env.NEXT_PUBLIC_USE_FIRESTORE_EMULATOR === 'true') {
+  const host = process.env.NEXT_PUBLIC_FIRESTORE_EMULATOR_HOST || '127.0.0.1';
+  try {
+      connectAuthEmulator(auth, `http://${host}:9099`, { disableWarnings: true });
+  } catch (e) {
+      // already connected
+  }
+}
+
+// 👇 Este export es el que faltaba y está pidiendo el resto del código
+export function getFirebaseApp(): FirebaseApp | null {
+  return app;
+}
+
+export function getInitDiagnostics() {
+  const config = getFirebaseConfig();
+  const error = config ? null : "[Firebase] Missing or invalid client config.";
+  const notes = config ? ["Using NEXT_PUBLIC_* env variables or injected config."] : ["Provide __FIREBASE_DEFAULTS__ (Studio/Hosting) or NEXT_PUBLIC_* env vars."];
+  return { error, notes };
+}
+
+
+export { db, auth };
