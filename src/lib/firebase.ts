@@ -9,6 +9,7 @@ let initError: string | null = null;
 let initNotes: string[] = [];
 
 function initializeClientApp(): FirebaseApp | null {
+  // Evitar la reinicialización.
   if (app) return app;
 
   const { config, diagnostics } = resolveFirebaseClientConfig();
@@ -23,7 +24,7 @@ function initializeClientApp(): FirebaseApp | null {
   }
 
   try {
-    // Initialize app only on the client
+    // Inicializar la app solo una vez.
     app = getApps().length ? getApp() : initializeApp(config);
     return app;
   } catch (err) {
@@ -34,16 +35,15 @@ function initializeClientApp(): FirebaseApp | null {
 }
 
 export function getFirebaseApp(): FirebaseApp | null {
-  // This function can be called from anywhere, but it will only
-  // initialize the app on the client-side.
+  // Esta función solo debe funcionar en el lado del cliente.
   if (typeof window === "undefined") {
-    return null; // Return null on the server
+    return null;
   }
   return initializeClientApp();
 }
 
 export function getInitDiagnostics() {
-  // Ensure diagnostics are captured on client-side initialization
+  // Asegurarse de que los diagnósticos se capturen en la inicialización del cliente.
   if (typeof window !== "undefined" && !app && !initError) {
     getFirebaseApp();
   }
