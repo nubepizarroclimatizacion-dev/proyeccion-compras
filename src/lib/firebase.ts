@@ -1,51 +1,50 @@
+'use client';
 
-"use client";
+import { getApps, initializeApp, type FirebaseApp, getApp } from 'firebase/app';
+import { getFirestore, type Firestore } from 'firebase/firestore';
 
-import { getApps, getApp, initializeApp, type FirebaseApp } from "firebase/app";
-import { resolveFirebaseClientConfig } from "./firebase-config";
+type FBConfig = {
+  apiKey: string;
+  authDomain: string;
+  projectId: string;
+  appId?: string;
+  storageBucket?: string;
+  messagingSenderId?: string;
+};
 
-let app: FirebaseApp | null = null;
-let initError: string | null = null;
-let initNotes: string[] = [];
+function readConfig(): FBConfig {
+  // 1) Fallback a __FIREBASE_DEFAULTS__ de Firebase Studio/Hosting
+  const defaults = (globalThis as any).__FIREBASE_DEFAULTS__;
+  if (defaults?.config?.projectId) {
+    return defaults.config as FBConfig;
+  }
+  
+  // 2) Prioridad: .env
+  const envConfig = {
+    apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || '',
+    authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || '',
+    projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || '',
+    appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+    storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+    messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  };
 
-function initializeClientApp(): FirebaseApp | null {
-  // Evitar la reinicialización.
-  if (app) return app;
-
-  const { config, diagnostics } = resolveFirebaseClientConfig();
-  initNotes = diagnostics;
-
-  if (!config) {
-    initError =
-      "[Firebase] Missing or invalid client config. " +
-      diagnostics.join(" | ");
-    console.error(initError);
-    return null;
+  if (envConfig.projectId) {
+    return envConfig;
   }
 
-  try {
-    // Inicializar la app solo una vez.
-    app = getApps().length ? getApp() : initializeApp(config);
-    return app;
-  } catch (err) {
-    initError = `[Firebase] Failed to initialize app: ${(err as Error).message}`;
-    console.error(initError);
-    return null;
-  }
+  // Si no hay configuración, devuelve un objeto vacío para que la inicialización falle con un error claro.
+  return {} as FBConfig;
 }
 
-export function getFirebaseApp(): FirebaseApp | null {
-  // Esta función solo debe funcionar en el lado del cliente.
-  if (typeof window === "undefined") {
-    return null;
-  }
-  return initializeClientApp();
-}
+let app: FirebaseApp;
+let db: Firestore;
 
-export function getInitDiagnostics() {
-  // Asegurarse de que los diagnósticos se capturen en la inicialización del cliente.
-  if (typeof window !== "undefined" && !app && !initError) {
-    getFirebaseApp();
-  }
-  return { notes: initNotes, error: initError };
+if (!getApps().length) {
+  app = initializeApp(readConfig());
+} else {
+  app = getApp();
 }
+db = getFirestore(app);
+
+export { app, db };

@@ -1,36 +1,20 @@
-
-import type { Metadata } from 'next';
-import { AppProviders } from '@/components/providers/AppProviders';
-import { AppLayout } from '@/components/AppLayout';
-import { Toaster } from '@/components/ui/toaster';
-import ConfigBanner from "@/components/system/ConfigBanner";
 import './globals.css';
 
-export const metadata: Metadata = {
+export const metadata = {
   title: 'Proyección de Compras',
-  description: 'Planifica compras, compromisos y disponibilidad',
+  description: 'Gestión de ventas y presupuesto de compras',
 };
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="es" suppressHydrationWarning>
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link href="https://fonts.googleapis.com/css2?family=PT+Sans:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet" />
-      </head>
-      <body className="font-body antialiased">
-        <ConfigBanner />
-        <AppProviders>
-          <AppLayout>
-            {children}
-          </AppLayout>
-          <Toaster />
-        </AppProviders>
+    <html lang="es">
+      <body className="min-h-screen bg-slate-50 text-slate-900">
+        <div className="mx-auto max-w-6xl px-4 py-6">
+          <header className="mb-6">
+            <h1 className="text-2xl font-semibold">Proyección de Compras</h1>
+          </header>
+          <main>{children}</main>
+        </div>
       </body>
     </html>
   );

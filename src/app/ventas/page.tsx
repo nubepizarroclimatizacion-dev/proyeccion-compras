@@ -1,196 +1,147 @@
-
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
-import { MonthPicker } from '@/components/MonthPicker';
-import { MoneyInput } from '@/components/MoneyInput';
-import { getVentas, setVentas, listUltimasVentas, getSettingsGlobal, listCompromisosByYm, listComprasByYm } from '@/lib/queries';
-import { toYm, fromYm } from '@/lib/ym';
-import { useConnection } from '@/hooks/use-connection';
-import { useToast } from '@/hooks/use-toast';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { formatArs } from '@/lib/currency';
-import { Badge } from '@/components/ui/badge';
-import type { VentasMes, SettingsGlobal, CompromisoDia, Compra } from '@/lib/schemas';
-import { format } from 'date-fns';
-import { es } from 'date-fns/locale';
+import { useEffect, useMemo, useState } from 'react';
+import { db } from '@/lib/firebase';
+import {
+  collection, doc, getDocs, limit, orderBy, query, setDoc
+} from 'firebase/firestore';
 
-function VentasForm({ ym, onSave }: { ym: string; onSave: () => void }) {
-  const [ventas, setVentas] = useState(0);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
-  const { isOnline } = useConnection();
-  const { toast } = useToast();
+type VentaMes = {
+  yearMonth: string;   // 'YYYY-MM'
+  ventas: number;      // entero
+  pctCompras?: number; // por defecto 80
+};
 
-  useEffect(() => {
-    async function fetchVentas() {
-      setIsLoading(true);
-      const data = await getVentas(ym)
-      setVentas(data?.ventas ?? 0);
-      setIsLoading(false);
-    }
-    fetchVentas();
-  }, [ym]);
-
-  const handleSave = async () => {
-    setIsSaving(true);
-    try {
-      await setVentas(ym, ventas);
-      toast({ title: 'Éxito', description: 'Ventas guardadas correctamente.' });
-      onSave();
-    } catch (error) {
-      toast({ variant: 'destructive', title: 'Error', description: 'No se pudo guardar las ventas.' });
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Ventas del Mes Seleccionado</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {isLoading ? (
-          <div className="space-y-2">
-            <Skeleton className="h-4 w-24" />
-            <Skeleton className="h-10 w-full" />
-          </div>
-        ) : (
-          <div className="space-y-2">
-            <Label htmlFor="ventas-mes">Monto de Ventas</Label>
-            <MoneyInput id="ventas-mes" value={ventas} onChange={setVentas} placeholder="Ingrese el total de ventas" />
-          </div>
-        )}
-      </CardContent>
-      <CardFooter>
-        <Button onClick={handleSave} disabled={!isOnline || isSaving || isLoading}>
-          {isSaving ? 'Guardando...' : 'Guardar Ventas'}
-        </Button>
-      </CardFooter>
-    </Card>
-  );
+function yyyymm(d: Date) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 }
-
-type ResumenMes = {
-    ym: string;
-    ventas: number;
-    presupuesto: number;
-    disponible: number;
-}
-
-function ResumenAnual() {
-    const [data, setData] = useState<ResumenMes[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    
-    const fetchData = useCallback(async () => {
-        setIsLoading(true);
-        const [settings, ultimasVentas] = await Promise.all([getSettingsGlobal(), listUltimasVentas(12)]);
-        
-        const yms = ultimasVentas.map(v => v.ym);
-        
-        const compromisosPromises = yms.map(ym => listCompromisosByYm(ym));
-        const comprasPromises = yms.map(ym => listComprasByYm(ym));
-        
-        const allCompromisos = await Promise.all(compromisosPromises);
-        const allCompras = await Promise.all(comprasPromises);
-        
-        const compromisosMap = new Map(yms.map((ym, i) => [ym, allCompromisos[i]]));
-        const comprasMap = new Map(yms.map((ym, i) => [ym, allCompras[i]]));
-        
-        const resumen = ultimasVentas.map(venta => {
-            const presupuesto = (venta.ventas * settings.percentCompras) / 100;
-            const totalCompromisos = (compromisosMap.get(venta.ym) || []).reduce((acc, c) => acc + c.plan, 0);
-            const totalCompras = (comprasMap.get(venta.ym) || []).reduce((acc, c) => acc + c.monto, 0);
-            const disponible = presupuesto - totalCompromisos - totalCompras;
-            
-            return {
-                ym: venta.ym,
-                ventas: venta.ventas,
-                presupuesto,
-                disponible,
-            };
-        });
-        
-        setData(resumen);
-        setIsLoading(false);
-    }, []);
-
-    useEffect(() => {
-        fetchData();
-    }, [fetchData]);
-
-
-    const formatMonth = (ym: string) => {
-        const date = fromYm(ym);
-        return format(date, "MMMM yyyy", { locale: es });
-    }
-
-    if (isLoading) {
-        return (
-            <Card>
-                <CardHeader><CardTitle>Resumen Últimos 12 Meses</CardTitle></CardHeader>
-                <CardContent>
-                    <div className="space-y-2">
-                        {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
-                    </div>
-                </CardContent>
-            </Card>
-        );
-    }
-    
-    return (
-        <Card>
-            <CardHeader><CardTitle>Resumen Últimos 12 Meses</CardTitle></CardHeader>
-            <CardContent>
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead>Mes</TableHead>
-                            <TableHead className="text-right">Ventas</TableHead>
-                            <TableHead className="text-right">Presupuesto</TableHead>
-                            <TableHead className="text-right">Disponible</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {data.map(mes => (
-                            <TableRow key={mes.ym}>
-                                <TableCell className="font-medium capitalize">{formatMonth(mes.ym)}</TableCell>
-                                <TableCell className="text-right">{formatArs(mes.ventas)}</TableCell>
-                                <TableCell className="text-right">{formatArs(mes.presupuesto)}</TableCell>
-                                <TableCell className="text-right">
-                                    <Badge variant={mes.disponible < 0 ? 'destructive' : 'default'}>{formatArs(mes.disponible)}</Badge>
-                                </TableCell>
-                            </TableRow>
-                        ))}
-                    </TableBody>
-                </Table>
-            </CardContent>
-        </Card>
-    );
-}
-
 
 export default function VentasPage() {
-  const [ym, setYm] = useState(toYm(new Date()));
-  const [key, setKey] = useState(0); // to force re-render of summary
+  const [yearMonth, setYearMonth] = useState<string>(yyyymm(new Date()));
+  const [ventas, setVentas] = useState<string>(''); // string por input
+  const [loading, setLoading] = useState(false);
+  const [rows, setRows] = useState<VentaMes[]>([]);
+  const pctComprasDefault = 80;
 
-  const handleSave = () => {
-    setKey(prev => prev + 1); // Trigger re-fetch in summary
+  // Carga últimos 12 registros
+  useEffect(() => {
+    (async () => {
+      try {
+        const q = query(
+            collection(db, 'ventasMensuales'),
+            orderBy('yearMonth', 'desc'),
+            limit(12)
+        );
+        const snap = await getDocs(q);
+        const data: VentaMes[] = [];
+        snap.forEach((d) => data.push(d.data() as VentaMes));
+        setRows(data);
+      } catch (error) {
+        console.error("Error fetching data from Firestore:", error);
+        // Opcional: mostrar un toast o mensaje al usuario
+      }
+    })()
+  }, []);
+
+  const canSave = useMemo(() => {
+    const n = Number(ventas.replaceAll('.', '').replace(',', '.'));
+    return yearMonth && !Number.isNaN(n) && n >= 0;
+  }, [ventas, yearMonth]);
+
+  async function handleSave() {
+    if (!canSave) return;
+    setLoading(true);
+    try {
+      const n = Math.round(Number(ventas.replaceAll('.', '').replace(',', '.')));
+      const ref = doc(db, 'ventasMensuales', yearMonth);
+      const payload: VentaMes = {
+        yearMonth,
+        ventas: n,
+        pctCompras: pctComprasDefault,
+      };
+      await setDoc(ref, payload, { merge: true });
+
+      // refresco local rápido
+      setRows((prev) => {
+        const copy = [...prev];
+        const idx = copy.findIndex((r) => r.yearMonth === yearMonth);
+        if (idx >= 0) copy[idx] = payload;
+        else copy.unshift(payload);
+        return copy.sort((a, b) => (a.yearMonth < b.yearMonth ? 1 : -1)).slice(0, 12);
+      });
+      setVentas('');
+    } catch (error) {
+        console.error("Error saving data to Firestore:", error);
+    }
+    finally {
+      setLoading(false);
+    }
   }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      <div className="lg:col-span-1 space-y-6">
-        <MonthPicker label="Seleccionar Mes" value={ym} onChange={setYm} />
-        <VentasForm ym={ym} onSave={handleSave} />
+    <div className="grid gap-6 md:grid-cols-3">
+      {/* Panel izquierdo: Formulario */}
+      <div className="md:col-span-1">
+        <div className="rounded-lg border bg-white p-4 shadow-sm">
+          <h2 className="mb-4 text-lg font-medium">Cargar Ventas del Mes</h2>
+
+          <label className="mb-2 block text-sm">Mes</label>
+          <input
+            type="month"
+            value={yearMonth}
+            onChange={(e) => setYearMonth(e.target.value)}
+            className="mb-4 w-full rounded border px-3 py-2"
+          />
+
+          <label className="mb-2 block text-sm">Ventas del Mes</label>
+          <input
+            inputMode="numeric"
+            value={ventas}
+            onChange={(e) => setVentas(e.target.value)}
+            placeholder="Ingrese un número entero (sin $)"
+            className="mb-4 w-full rounded border px-3 py-2"
+          />
+
+          <button
+            onClick={handleSave}
+            disabled={!canSave || loading}
+            className="w-full rounded bg-indigo-600 px-4 py-2 text-white disabled:opacity-50"
+          >
+            {loading ? 'Guardando…' : 'Guardar Ventas'}
+          </button>
+
+          <p className="mt-2 text-xs text-slate-500">
+            Presupuesto de Compras por defecto: {pctComprasDefault}% de ventas.
+          </p>
+        </div>
       </div>
-      <div className="lg:col-span-2">
-        <ResumenAnual key={key} />
+
+      {/* Panel derecho: Resumen */}
+      <div className="md:col-span-2">
+        <div className="rounded-lg border bg-white p-4 shadow-sm">
+          <h2 className="mb-4 text-lg font-medium">Resumen de Ventas Mensuales</h2>
+          <div className="grid grid-cols-3 gap-3 text-sm font-medium text-slate-600">
+            <div>Mes</div>
+            <div className="text-right">Ventas</div>
+            <div className="text-right">Presup. Compras</div>
+          </div>
+          <div className="mt-2 divide-y">
+            {rows.map((r) => (
+              <div key={r.yearMonth} className="grid grid-cols-3 gap-3 py-2 text-sm">
+                <div>{r.yearMonth}</div>
+                <div className="text-right">
+                  {r.ventas.toLocaleString('es-AR')}
+                </div>
+                <div className="text-right">
+                  {(Math.round((r.pctCompras ?? 80) * r.ventas) / 100).toLocaleString('es-AR')}
+                </div>
+              </div>
+            ))}
+            {rows.length === 0 && (
+              <div className="py-4 text-sm text-slate-500">No hay datos de ventas mensuales.</div>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );
