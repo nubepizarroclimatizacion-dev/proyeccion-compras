@@ -7,3 +7,4 @@ dist/
 .env.*.local
 firebase-debug.log
 firebase.json.backup
+.env*
