@@ -12,7 +12,10 @@ export function AppProviders({ children }: { children: ReactNode }) {
     const signIn = async () => {
       try {
         const auth = await lazyGetAuth();
-        await signInAnonymously(auth);
+        // Solo intentar iniciar sesión si la autenticación se obtuvo correctamente
+        if (auth) {
+          await signInAnonymously(auth);
+        }
       } catch (error) {
         console.error("Anonymous sign-in failed:", error);
       }

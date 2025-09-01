@@ -6,7 +6,12 @@ import type { User } from "firebase/auth";
 
 export async function lazyGetAuth() {
   const app = getFirebaseApp();
-  if (!app) throw new Error("Firebase app not initialized");
+  // Si la app no está inicializada, no podemos continuar.
+  // Las funciones que llaman a esto deben manejar un retorno nulo.
+  if (!app) {
+    console.warn("[Firebase] App not available for lazyGetAuth.");
+    return null;
+  };
 
   const { getAuth, browserLocalPersistence, setPersistence, connectAuthEmulator } = await import(
     "firebase/auth"
@@ -34,5 +39,5 @@ export async function lazyGetAuth() {
 
 export async function getCurrentUser(): Promise<User | null> {
   const auth = await lazyGetAuth();
-  return auth.currentUser;
+  return auth ? auth.currentUser : null;
 }
