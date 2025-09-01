@@ -5,7 +5,6 @@ import { getFirebaseApp } from "./firebase";
 import {
   Firestore,
   getFirestore,
-  initializeFirestore,
 } from "firebase/firestore";
 
 let db: Firestore | null = null;
@@ -31,13 +30,7 @@ export function lazyGetDb(): Firestore | null {
     return null;
   }
 
-  // Initialize Firestore with experimental settings for better offline support.
-  // Using initializeFirestore instead of getFirestore to pass settings.
-  db = initializeFirestore(app, {
-    localCache: {
-      kind: "persistent",
-    },
-  });
+  db = getFirestore(app);
 
   return db;
 }
