@@ -1,7 +1,7 @@
 
 "use client";
 
-import { getFirebaseApp } from "./firebase";
+import { getFirebaseApp } from "./firebase"; 
 import {
     getFirestore,
     initializeFirestore,
@@ -13,10 +13,8 @@ import {
 
 let dbInstance: Firestore | null = null;
 
-export async function lazyGetDb() {
+export function lazyGetDb(): Firestore | null {
   if (typeof window === 'undefined') {
-    // Retorna null si no estamos en el navegador
-    // Las funciones que lo llamen deben manejar este caso.
     return null;
   }
   
@@ -26,20 +24,19 @@ export async function lazyGetDb() {
 
   const app = getFirebaseApp();
   if (!app) {
-    // No lances un error, getFirebaseApp ya loguea el problema.
+    // La app no se pudo inicializar (falta config), no continuar.
     return null;
   }
 
   try {
-    // initializeFirestore puede ser llamado múltiples veces sin problema,
-    // pero para mayor seguridad lo encapsulamos.
+    // Usar initializeFirestore para habilitar el cache offline.
     dbInstance = initializeFirestore(app, {
         localCache: persistentLocalCache({
           tabManager: persistentMultipleTabManager(),
         }),
       });
   } catch(e) {
-    // si ya está inicializado, solo obtenemos la instancia
+    // Si ya está inicializado (puede pasar con Fast Refresh), obtener la instancia existente.
     dbInstance = getFirestore(app);
   }
 

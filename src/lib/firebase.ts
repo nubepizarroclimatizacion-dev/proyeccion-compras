@@ -1,50 +1,60 @@
-'use client';
+// src/lib/firebase.ts
+"use client";
 
-import { getApps, initializeApp, type FirebaseApp, getApp } from 'firebase/app';
-import { getFirestore, type Firestore } from 'firebase/firestore';
+import { initializeApp, getApps, getApp, type FirebaseApp } from "firebase/app";
 
-type FBConfig = {
-  apiKey: string;
-  authDomain: string;
-  projectId: string;
-  appId?: string;
-  storageBucket?: string;
-  messagingSenderId?: string;
-};
-
-function readConfig(): FBConfig {
-  // 1) Fallback a __FIREBASE_DEFAULTS__ de Firebase Studio/Hosting
-  const defaults = (globalThis as any).__FIREBASE_DEFAULTS__;
-  if (defaults?.config?.projectId) {
-    return defaults.config as FBConfig;
-  }
-  
-  // 2) Prioridad: .env
-  const envConfig = {
-    apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || '',
-    authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || '',
-    projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || '',
-    appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-    storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-    messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  };
-
-  if (envConfig.projectId) {
-    return envConfig;
+// Esta función resuelve la configuración de Firebase de forma segura.
+function getFirebaseConfig() {
+  // En un entorno de navegador, __FIREBASE_DEFAULTS__ es inyectado por Firebase Hosting/Studio.
+  if (typeof window !== "undefined") {
+    const injectedConfig = (window as any).__FIREBASE_DEFAULTS__;
+    if (injectedConfig?.config?.projectId) {
+      return injectedConfig.config;
+    }
   }
 
-  // Si no hay configuración, devuelve un objeto vacío para que la inicialización falle con un error claro.
-  return {} as FBConfig;
+  // Como fallback para desarrollo local, usamos las variables de entorno.
+  if (process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID) {
+    return {
+      apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+      authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+      projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+      storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+      messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+      appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+    };
+  }
+
+  return null; // No hay configuración disponible
 }
 
-let app: FirebaseApp;
-let db: Firestore;
+let firebaseApp: FirebaseApp | null = null;
 
-if (!getApps().length) {
-  app = initializeApp(readConfig());
-} else {
-  app = getApp();
+/**
+ * Inicializa y devuelve la instancia de la aplicación de Firebase (singleton).
+ * Se asegura de que la inicialización ocurra solo una vez y en el cliente.
+ * @returns La instancia de FirebaseApp o null si la configuración no está disponible.
+ */
+export function getFirebaseApp(): FirebaseApp | null {
+  if (firebaseApp) {
+    return firebaseApp;
+  }
+
+  const config = getFirebaseConfig();
+
+  if (!config) {
+    console.error(
+      "Firebase config not found. Please set up NEXT_PUBLIC_FIREBASE_* environment variables or use the Firebase Hosting environment."
+    );
+    return null;
+  }
+
+  // Evitamos inicializaciones duplicadas.
+  if (!getApps().length) {
+    firebaseApp = initializeApp(config);
+  } else {
+    firebaseApp = getApp();
+  }
+
+  return firebaseApp;
 }
-db = getFirestore(app);
-
-export { app, db };

@@ -1,9 +1,10 @@
+
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { db } from '@/lib/firebase';
+import { lazyGetDb } from '@/lib/firebase-db';
 import {
-  collection, doc, getDocs, limit, orderBy, query, setDoc
+  collection, doc, getDocs, limit, orderBy, query, setDoc, Firestore
 } from 'firebase/firestore';
 
 type VentaMes = {
@@ -26,6 +27,9 @@ export default function VentasPage() {
   // Carga últimos 12 registros
   useEffect(() => {
     (async () => {
+      const db = lazyGetDb();
+      if (!db) return; // No hacer nada si la DB no está lista
+
       try {
         const q = query(
             collection(db, 'ventasMensuales'),
@@ -38,7 +42,6 @@ export default function VentasPage() {
         setRows(data);
       } catch (error) {
         console.error("Error fetching data from Firestore:", error);
-        // Opcional: mostrar un toast o mensaje al usuario
       }
     })()
   }, []);
@@ -50,6 +53,12 @@ export default function VentasPage() {
 
   async function handleSave() {
     if (!canSave) return;
+    const db = lazyGetDb();
+    if (!db) {
+        console.error("Database not available.");
+        return;
+    }
+
     setLoading(true);
     try {
       const n = Math.round(Number(ventas.replaceAll('.', '').replace(',', '.')));
