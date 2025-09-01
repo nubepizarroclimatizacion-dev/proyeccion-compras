@@ -25,7 +25,7 @@ const defaultSettings: SettingsGlobal = {
 };
 
 export async function getSettingsGlobal(): Promise<SettingsGlobal> {
-  const db = await lazyGetDb();
+  const db = lazyGetDb();
   if (!db) return defaultSettings;
   const docRef = doc(db, 'settings', 'global');
   const docSnap = await getDoc(docRef);
@@ -36,7 +36,7 @@ export async function getSettingsGlobal(): Promise<SettingsGlobal> {
 }
 
 export async function upsertSettingsGlobal(data: Partial<SettingsGlobal>): Promise<void> {
-  const db = await lazyGetDb();
+  const db = lazyGetDb();
   if (!db) return;
   const docRef = doc(db, 'settings', 'global');
   await setDoc(docRef, data, { merge: true });
@@ -44,7 +44,7 @@ export async function upsertSettingsGlobal(data: Partial<SettingsGlobal>): Promi
 
 // --- Ventas ---
 export async function getVentas(ym: string): Promise<VentasMes | null> {
-  const db = await lazyGetDb();
+  const db = lazyGetDb();
   if (!db) return null;
   const docRef = doc(db, 'ventasMensuales', ym);
   const docSnap = await getDoc(docRef);
@@ -55,7 +55,7 @@ export async function getVentas(ym: string): Promise<VentasMes | null> {
 }
 
 export async function setVentas(ym: string, ventas: number): Promise<void> {
-  const db = await lazyGetDb();
+  const db = lazyGetDb();
   if (!db) return;
   const docRef = doc(db, 'ventasMensuales', ym);
   const docSnap = await getDoc(docRef);
@@ -75,7 +75,7 @@ export async function setVentas(ym: string, ventas: number): Promise<void> {
 }
 
 export async function listUltimasVentas(count = 12): Promise<VentasMes[]> {
-    const db = await lazyGetDb();
+    const db = lazyGetDb();
     if (!db) return [];
     const q = query(collection(db, 'ventasMensuales'), orderBy('ym', 'desc'), limit(count));
     const querySnapshot = await getDocs(q);
@@ -84,7 +84,7 @@ export async function listUltimasVentas(count = 12): Promise<VentasMes[]> {
 
 // --- Compras ---
 export async function listComprasByYm(ym: string): Promise<Compra[]> {
-  const db = await lazyGetDb();
+  const db = lazyGetDb();
   if (!db) return [];
   const q = query(collection(db, 'compras'), where('ym', '==', ym), orderBy('fecha', 'desc'));
   const querySnapshot = await getDocs(q);
@@ -92,7 +92,7 @@ export async function listComprasByYm(ym: string): Promise<Compra[]> {
 }
 
 export async function addCompra(data: Omit<Compra, 'id'>): Promise<string | undefined> {
-  const db = await lazyGetDb();
+  const db = lazyGetDb();
   if (!db) return;
   const { id, ...compraData } = data as Compra; // zod ensures this
   const docRef = await addDoc(collection(db, 'compras'), {
@@ -103,14 +103,14 @@ export async function addCompra(data: Omit<Compra, 'id'>): Promise<string | unde
 }
 
 export async function deleteCompra(id: string): Promise<void> {
-  const db = await lazyGetDb();
+  const db = lazyGetDb();
   if (!db) return;
   await deleteDoc(doc(db, 'compras', id));
 }
 
 // --- Compromisos ---
 export async function listCompromisosByYm(ym: string): Promise<CompromisoDia[]> {
-    const db = await lazyGetDb();
+    const db = lazyGetDb();
     if (!db) return [];
     const q = query(collection(db, 'compromisosDiarios'), where('ym', '==', ym));
     const querySnapshot = await getDocs(q);
@@ -118,7 +118,7 @@ export async function listCompromisosByYm(ym: string): Promise<CompromisoDia[]> 
 }
 
 export async function upsertCompromisoDia(data: Pick<CompromisoDia, 'fecha' | 'ym'> & Partial<Pick<CompromisoDia, 'plan' | 'pagado'>>): Promise<void> {
-    const db = await lazyGetDb();
+    const db = lazyGetDb();
     if (!db) return;
     const { fecha, ...updateData } = data;
     const docRef = doc(db, 'compromisosDiarios', fecha);

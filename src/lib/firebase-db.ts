@@ -1,54 +1,43 @@
-
+// src/lib/firebase-db.ts
 "use client";
 
-import { getFirebaseApp } from "./firebase"; 
+import { getFirebaseApp } from "./firebase";
 import {
-    getFirestore,
-    initializeFirestore,
-    persistentLocalCache,
-    persistentMultipleTabManager,
-    connectFirestoreEmulator,
-    Firestore
-  } from "firebase/firestore";
+  Firestore,
+  getFirestore,
+  initializeFirestore,
+} from "firebase/firestore";
 
-let dbInstance: Firestore | null = null;
+let db: Firestore | null = null;
 
+/**
+ * Returns a "lazy" instance of the Firestore database.
+ *
+ * This function will initialize the Firestore instance only once,
+ * and only on the client-side. This is to avoid server-side
+ * execution errors in Next.js.
+ *
+ * @returns A Firestore instance or null if initialization fails.
+ */
 export function lazyGetDb(): Firestore | null {
-  if (typeof window === 'undefined') {
-    return null;
-  }
-  
-  if (dbInstance) {
-    return dbInstance;
+  if (db) {
+    return db;
   }
 
   const app = getFirebaseApp();
   if (!app) {
-    // La app no se pudo inicializar (falta config), no continuar.
+    // App is not yet initialized. This can happen on first render.
+    // Components should handle this case gracefully (e.g. show a loading state).
     return null;
   }
 
-  try {
-    // Usar initializeFirestore para habilitar el cache offline.
-    dbInstance = initializeFirestore(app, {
-        localCache: persistentLocalCache({
-          tabManager: persistentMultipleTabManager(),
-        }),
-      });
-  } catch(e) {
-    // Si ya está inicializado (puede pasar con Fast Refresh), obtener la instancia existente.
-    dbInstance = getFirestore(app);
-  }
+  // Initialize Firestore with experimental settings for better offline support.
+  // Using initializeFirestore instead of getFirestore to pass settings.
+  db = initializeFirestore(app, {
+    localCache: {
+      kind: "persistent",
+    },
+  });
 
-  if (process.env.NEXT_PUBLIC_USE_FIRESTORE_EMULATOR === 'true') {
-    const host = process.env.NEXT_PUBLIC_FIRESTORE_EMULATOR_HOST || '127.0.0.1';
-    const port = parseInt(process.env.NEXT_PUBLIC_FIRESTORE_EMULATOR_PORT || '8080', 10);
-    try {
-        connectFirestoreEmulator(dbInstance, host, port);
-    } catch(e) {
-        // ya está conectado
-    }
-  }
-
-  return dbInstance;
+  return db;
 }
