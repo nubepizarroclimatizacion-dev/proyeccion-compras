@@ -6,6 +6,7 @@ import { lazyGetDb } from '@/lib/firebase-db';
 import {
   collection, doc, getDocs, limit, orderBy, query, setDoc, Firestore
 } from 'firebase/firestore';
+import { useToast } from '@/hooks/use-toast';
 
 type VentaMes = {
   yearMonth: string;   // 'YYYY-MM'
@@ -22,6 +23,7 @@ export default function VentasPage() {
   const [ventas, setVentas] = useState<string>(''); // string por input
   const [loading, setLoading] = useState(false);
   const [rows, setRows] = useState<VentaMes[]>([]);
+  const { toast } = useToast();
   const pctComprasDefault = 80;
 
   // Carga últimos 12 registros
@@ -55,7 +57,7 @@ export default function VentasPage() {
     if (!canSave) return;
     const db = lazyGetDb();
     if (!db) {
-        console.error("Database not available.");
+        toast({ variant: "destructive", title: "Error", description: "La base de datos no está disponible. Intente de nuevo." });
         return;
     }
 
@@ -79,8 +81,9 @@ export default function VentasPage() {
         return copy.sort((a, b) => (a.yearMonth < b.yearMonth ? 1 : -1)).slice(0, 12);
       });
       setVentas('');
+      toast({ title: 'Éxito', description: 'Ventas guardadas correctamente.' });
     } catch (error) {
-        console.error("Error saving data to Firestore:", error);
+        toast({ variant: "destructive", title: "Error", description: "No se pudieron guardar las ventas." });
     }
     finally {
       setLoading(false);
