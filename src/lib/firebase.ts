@@ -9,6 +9,11 @@ let initError: string | null = null;
 let initNotes: string[] = [];
 
 function ensureApp(): FirebaseApp | null {
+  // This function should only run on the client
+  if (typeof window === "undefined") {
+    return null;
+  }
+  
   if (app) return app;
   const { config, diagnostics } = resolveFirebaseClientConfig();
   initNotes = diagnostics;

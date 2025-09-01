@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -26,11 +27,13 @@ function VentasForm({ ym, onSave }: { ym: string; onSave: () => void }) {
   const { toast } = useToast();
 
   useEffect(() => {
-    setIsLoading(true);
-    getVentas(ym).then((data) => {
+    async function fetchVentas() {
+      setIsLoading(true);
+      const data = await getVentas(ym)
       setVentas(data?.ventas ?? 0);
       setIsLoading(false);
-    });
+    }
+    fetchVentas();
   }, [ym]);
 
   const handleSave = async () => {

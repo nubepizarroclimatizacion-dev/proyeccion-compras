@@ -2,19 +2,31 @@
 "use client";
 
 import { getFirebaseApp } from "./firebase";
-
-export async function lazyGetDb() {
-  const app = getFirebaseApp();
-  if (!app) throw new Error("Firebase app not initialized");
-
-  const {
+import {
     getFirestore,
     initializeFirestore,
     persistentLocalCache,
     persistentMultipleTabManager,
     connectFirestoreEmulator,
-  } = await import("firebase/firestore");
+    Firestore
+  } from "firebase/firestore";
 
+let dbInstance: Firestore | null = null;
+
+export async function lazyGetDb() {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+  
+  if (dbInstance) {
+    return dbInstance;
+  }
+
+  const app = getFirebaseApp();
+  if (!app) {
+    console.error("Firebase app not initialized");
+    return null;
+  }
 
   const db = getFirestore(app);
 
@@ -38,6 +50,6 @@ export async function lazyGetDb() {
     // already initialized
   }
 
-
-  return db;
+  dbInstance = db;
+  return dbInstance;
 }
