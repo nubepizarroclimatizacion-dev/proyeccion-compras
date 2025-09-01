@@ -15,6 +15,8 @@ let dbInstance: Firestore | null = null;
 
 export async function lazyGetDb() {
   if (typeof window === 'undefined') {
+    // Retorna null si no estamos en el navegador
+    // Las funciones que lo llamen deben manejar este caso.
     return null;
   }
   
@@ -24,32 +26,32 @@ export async function lazyGetDb() {
 
   const app = getFirebaseApp();
   if (!app) {
-    console.error("Firebase app not initialized");
+    // No lances un error, getFirebaseApp ya loguea el problema.
     return null;
   }
 
-  const db = getFirestore(app);
-
-  if (process.env.NEXT_PUBLIC_USE_FIRESTORE_EMULATOR === 'true') {
-    const host = process.env.NEXT_PUBLIC_FIRESTORE_EMULATOR_HOST || '127.0.0.1';
-    const port = parseInt(process.env.NEXT_PUBLIC_FIRESTORE_EMULATOR_PORT || '8080', 10);
-    try {
-        connectFirestoreEmulator(db, host, port);
-    } catch(e) {
-        // already connected
-    }
-  }
-
   try {
-    initializeFirestore(app, {
+    // initializeFirestore puede ser llamado múltiples veces sin problema,
+    // pero para mayor seguridad lo encapsulamos.
+    dbInstance = initializeFirestore(app, {
         localCache: persistentLocalCache({
           tabManager: persistentMultipleTabManager(),
         }),
       });
   } catch(e) {
-    // already initialized
+    // si ya está inicializado, solo obtenemos la instancia
+    dbInstance = getFirestore(app);
   }
 
-  dbInstance = db;
+  if (process.env.NEXT_PUBLIC_USE_FIRESTORE_EMULATOR === 'true') {
+    const host = process.env.NEXT_PUBLIC_FIRESTORE_EMULATOR_HOST || '127.0.0.1';
+    const port = parseInt(process.env.NEXT_PUBLIC_FIRESTORE_EMULATOR_PORT || '8080', 10);
+    try {
+        connectFirestoreEmulator(dbInstance, host, port);
+    } catch(e) {
+        // ya está conectado
+    }
+  }
+
   return dbInstance;
 }
