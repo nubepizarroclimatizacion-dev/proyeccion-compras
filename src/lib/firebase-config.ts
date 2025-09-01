@@ -24,7 +24,23 @@ export function resolveFirebaseClientConfig(): {
 } {
   const notes: string[] = [];
 
-  // Prioridad 1: Usar variables de entorno NEXT_PUBLIC_* si están definidas.
+  // Prioridad 1: Buscar configuración inyectada (Firebase Hosting/Studio).
+  // Esto es crucial para que funcione sin variables de entorno en Studio.
+  const injectedDefaults = (typeof window !== 'undefined' && (window as any).__FIREBASE_DEFAULTS__);
+  const injectedConfig = (typeof window !== 'undefined' && (window as any).FIREBASE_CONFIG);
+  
+  const parsedDefaults = tryParseJSON(injectedDefaults);
+  const parsedConfig = tryParseJSON(injectedConfig);
+
+  const injected = (parsedDefaults && parsedDefaults.config) || parsedConfig || null;
+
+  if (injected?.apiKey && injected?.projectId && injected?.appId) {
+    notes.push("Using injected Firebase config (__FIREBASE_DEFAULTS__/FIREBASE_CONFIG).");
+    return { config: injected as FirebaseClientConfig, diagnostics: notes };
+  }
+  
+  // Prioridad 2: Usar variables de entorno NEXT_PUBLIC_* si están definidas.
+  // Este es el fallback para desarrollo local fuera de Studio.
   const envConfig: FirebaseClientConfig = {
     apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "",
     authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
@@ -39,20 +55,6 @@ export function resolveFirebaseClientConfig(): {
     return { config: envConfig, diagnostics: notes };
   }
 
-  // Prioridad 2: Buscar configuración inyectada (Firebase Hosting/Studio).
-  const injectedDefaults = (typeof window !== 'undefined' && (window as any).__FIREBASE_DEFAULTS__);
-  const injectedConfig = (typeof window !== 'undefined' && (window as any).FIREBASE_CONFIG);
-  
-  const parsedDefaults = tryParseJSON(injectedDefaults);
-  const parsedConfig = tryParseJSON(injectedConfig);
-
-  const injected = (parsedDefaults && parsedDefaults.config) || parsedConfig || null;
-
-  if (injected?.apiKey && injected?.projectId && injected?.appId) {
-    notes.push("Using injected Firebase config (__FIREBASE_DEFAULTS__/FIREBASE_CONFIG).");
-    return { config: injected as FirebaseClientConfig, diagnostics: notes };
-  }
-  
   notes.push(
     "Firebase config missing. Provide __FIREBASE_DEFAULTS__/FIREBASE_CONFIG (Studio/Hosting) or NEXT_PUBLIC_* env vars."
   );
