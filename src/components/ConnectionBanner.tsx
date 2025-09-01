@@ -1,6 +1,6 @@
 'use client';
 
-import { useConnection } from '@/hooks/use-connection';
+import { useConnection } from '@/hooks/use-connection.tsx';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { WifiOff } from 'lucide-react';
 

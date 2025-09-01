@@ -4,7 +4,7 @@ import type { ReactNode } from 'react';
 import { useEffect } from 'react';
 import { auth } from '@/lib/firebase';
 import { signInAnonymously } from 'firebase/auth';
-import { ConnectionProvider } from '@/hooks/use-connection';
+import { ConnectionProvider } from '@/hooks/use-connection.tsx';
 
 export function AppProviders({ children }: { children: ReactNode }) {
   useEffect(() => {
